@@ -1,4 +1,4 @@
-# File Upload API
+# Myst API
 
 ## Install
 
@@ -67,6 +67,12 @@ curl -X 'GET' \
   'http://localhost:3000/file/download/file-1721071831605-103105625.jpeg' \
   -H 'accept: */*' \
   -H 'api-key: 1234'
+```
+
+## Prod
+
+```
+https://myst-api.jcloud-ver-jpe.ik-server.com/api
 ```
 
 ## Versions

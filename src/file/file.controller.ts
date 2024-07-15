@@ -58,7 +58,10 @@ export class FileController {
       uploadDate: new Date(),
     };
     await this.fileService.saveFileMetadata(metadata);
-    return { message: 'File uploaded successfully', metadata };
+    return {
+      message: 'File uploaded successfully',
+      metadata,
+    };
   }
 
   @Get('download/:filename')

@@ -1,10 +1,5 @@
 {
-  "name": "file-upload-api",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
-  "private": true,
-  "license": "UNLICENSED",
+  "name": "myst-api",
   "scripts": {
     "build": "nest build",
     "postbuild": "mkdir -p dist/uploads && cp -r uploads/* dist/uploads/",
