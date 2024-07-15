@@ -174,10 +174,10 @@ export class WebAuthnService {
       allowCredentials: user.credentials.map((cred) => ({
         id: cred.credentialID as any,
         type: 'public-key',
-        transports: ['usb', 'ble', 'nfc', 'internal'],
+        transports: ['internal'], // Favor internal transport for fingerprint
       })),
       rpID: 'localhost',
-      // userVerification: 'required', // Require user verification
+      userVerification: 'required', // Require user verification (e.g., fingerprint)
     });
 
     // Store the challenge for later verification
