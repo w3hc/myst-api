@@ -1,11 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as fs from 'fs';
 import { FileUploadDto } from '../dto/file-upload.dto';
 
 @Injectable()
-export class FileService {
+export class FileService implements OnModuleInit {
   private readonly uploadPath = './dist/uploads'; // Update to dist/uploads
-  private readonly dbFilePath = './dist/db.json'; // Update to dist/db.json
+  private readonly dbFilePath = './dist/uploads/db.json'; // Update to dist/uploads/db.json
+
+  onModuleInit() {
+    if (!fs.existsSync(this.uploadPath)) {
+      fs.mkdirSync(this.uploadPath, { recursive: true });
+    }
+
+    if (!fs.existsSync(this.dbFilePath)) {
+      this.writeDatabase({ files: [] });
+    }
+  }
 
   async saveFileMetadata(metadata: FileUploadDto): Promise<void> {
     const data = await this.readDatabase();

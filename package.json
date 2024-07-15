@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "postbuild": "mkdir -p dist/uploads && cp db.json dist/",
+    "postbuild": "mkdir -p dist/uploads && cp -r uploads/* dist/uploads/",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
