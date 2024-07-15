@@ -22,6 +22,7 @@ interface User {
 export class WebAuthnService {
   private dbFilePath: string;
   private readonly logger = new Logger(WebAuthnService.name);
+  private challenges: { [userId: string]: string } = {}; // Temporary store for challenges
 
   constructor() {
     this.dbFilePath = path.resolve(__dirname, '..', 'users.json');
@@ -85,12 +86,15 @@ export class WebAuthnService {
     const userID = new TextEncoder().encode(userId);
 
     this.logger.log('Generating registration options');
-    const options = generateRegistrationOptions({
+    const options = await generateRegistrationOptions({
       rpName: 'My Application',
       rpID: 'localhost',
       userID,
       userName: userId,
     });
+
+    // Store the challenge for later verification
+    this.challenges[userId] = options.challenge;
 
     this.logger.log('Pushing new user to database');
     db.users.push({ id: userId, credentials: [] });
@@ -113,11 +117,17 @@ export class WebAuthnService {
       throw new Error('User not found');
     }
 
+    const expectedChallenge = this.challenges[userId];
+    if (!expectedChallenge) {
+      this.logger.error('No challenge found for this user');
+      throw new Error('No challenge found for this user');
+    }
+
     this.logger.log('Verifying registration response');
     const { verified, registrationInfo } = await verifyRegistrationResponse({
       response: attResp,
-      expectedChallenge: attResp.response.clientDataJSON.challenge,
-      expectedOrigin: 'http://localhost:3000',
+      expectedChallenge: expectedChallenge,
+      expectedOrigin: 'http://localhost:3001',
       expectedRPID: 'localhost',
     });
 
@@ -134,6 +144,9 @@ export class WebAuthnService {
 
       user.credentials.push(convertedCredential);
       await this.writeDatabase(db);
+
+      // Clean up the stored challenge
+      delete this.challenges[userId];
     } else {
       this.logger.log('Registration verification failed');
     }
@@ -152,7 +165,7 @@ export class WebAuthnService {
     }
 
     this.logger.log('Generating authentication options');
-    const options = generateAuthenticationOptions({
+    const options = await generateAuthenticationOptions({
       allowCredentials: user.credentials.map((cred) => ({
         id: this.uint8ArrayToBase64url(cred.credentialID),
         type: 'public-key',
@@ -160,6 +173,9 @@ export class WebAuthnService {
       })),
       rpID: 'localhost',
     });
+
+    // Store the challenge for later verification
+    this.challenges[userId] = options.challenge;
 
     this.logger.log('Returning authentication options');
     return options;
@@ -176,6 +192,12 @@ export class WebAuthnService {
     if (!user) {
       this.logger.error('User not found');
       throw new Error('User not found');
+    }
+
+    const expectedChallenge = this.challenges[userId];
+    if (!expectedChallenge) {
+      this.logger.error('No challenge found for this user');
+      throw new Error('No challenge found for this user');
     }
 
     const authenticator = user.credentials.find(
@@ -195,14 +217,16 @@ export class WebAuthnService {
 
     const { verified } = await verifyAuthenticationResponse({
       response: attResp,
-      expectedChallenge: attResp.response.clientDataJSON.challenge,
-      expectedOrigin: 'http://localhost:3000',
+      expectedChallenge: expectedChallenge,
+      expectedOrigin: 'http://localhost:3001',
       expectedRPID: 'localhost',
       authenticator: authenticatorWithStringID,
     });
 
     if (verified) {
       this.logger.log('Authentication verified');
+      // Clean up the stored challenge
+      delete this.challenges[userId];
     } else {
       this.logger.log('Authentication verification failed');
     }
