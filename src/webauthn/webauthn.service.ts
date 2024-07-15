@@ -172,11 +172,12 @@ export class WebAuthnService {
     this.logger.log('Generating authentication options');
     const options = await generateAuthenticationOptions({
       allowCredentials: user.credentials.map((cred) => ({
-        id: cred.credentialID as unknown as string,
+        id: cred.credentialID as any,
         type: 'public-key',
         transports: ['usb', 'ble', 'nfc', 'internal'],
       })),
       rpID: 'localhost',
+      // userVerification: 'required', // Require user verification
     });
 
     // Store the challenge for later verification
@@ -206,7 +207,10 @@ export class WebAuthnService {
     }
 
     const authenticator = user.credentials.find(
-      (cred) => cred.credentialID === attResp.id,
+      (cred) =>
+        this.uint8ArrayToBase64url(
+          this.base64urlToUint8Array(cred.credentialID as any),
+        ) === attResp.id,
     );
 
     if (!authenticator) {
@@ -218,10 +222,10 @@ export class WebAuthnService {
     const authenticatorWithStringID = {
       ...authenticator,
       credentialID: this.base64urlToUint8Array(
-        authenticator.credentialID as unknown as string,
+        authenticator.credentialID as any,
       ),
       credentialPublicKey: this.base64urlToUint8Array(
-        authenticator.credentialPublicKey as unknown as string,
+        authenticator.credentialPublicKey as any,
       ),
     };
 
@@ -230,7 +234,15 @@ export class WebAuthnService {
       expectedChallenge: expectedChallenge,
       expectedOrigin: 'http://localhost:3001',
       expectedRPID: 'localhost',
-      authenticator: authenticatorWithStringID as any,
+      authenticator: {
+        ...authenticatorWithStringID,
+        credentialID: this.base64urlToUint8Array(
+          authenticator.credentialID as any,
+        ),
+        credentialPublicKey: this.base64urlToUint8Array(
+          authenticator.credentialPublicKey as any,
+        ),
+      } as any,
     });
 
     if (verified) {
