@@ -140,6 +140,9 @@ export class WebAuthnService {
         credentialID: this.base64urlToUint8Array(
           registrationInfo.credentialID as unknown as string,
         ),
+        credentialPublicKey: this.base64urlToUint8Array(
+          registrationInfo.credentialPublicKey as unknown as string,
+        ),
       };
 
       user.credentials.push(convertedCredential);
@@ -213,6 +216,9 @@ export class WebAuthnService {
     const authenticatorWithStringID = {
       ...authenticator,
       credentialID: this.uint8ArrayToBase64url(authenticator.credentialID),
+      credentialPublicKey: this.base64urlToUint8Array(
+        authenticator.credentialPublicKey as unknown as string,
+      ),
     };
 
     const { verified } = await verifyAuthenticationResponse({
