@@ -137,15 +137,17 @@ export class WebAuthnService {
       );
       const convertedCredential = {
         ...registrationInfo,
-        credentialID: this.base64urlToUint8Array(
-          registrationInfo.credentialID as unknown as string,
+        credentialID: this.uint8ArrayToBase64url(
+          registrationInfo.credentialID as unknown as Uint8Array,
         ),
-        credentialPublicKey: this.base64urlToUint8Array(
-          registrationInfo.credentialPublicKey as unknown as string,
+        credentialPublicKey: this.uint8ArrayToBase64url(
+          registrationInfo.credentialPublicKey as unknown as Uint8Array,
         ),
       };
 
-      user.credentials.push(convertedCredential);
+      user.credentials.push(
+        convertedCredential as unknown as AuthenticatorDevice,
+      );
       await this.writeDatabase(db);
 
       // Clean up the stored challenge
@@ -170,7 +172,7 @@ export class WebAuthnService {
     this.logger.log('Generating authentication options');
     const options = await generateAuthenticationOptions({
       allowCredentials: user.credentials.map((cred) => ({
-        id: this.uint8ArrayToBase64url(cred.credentialID),
+        id: cred.credentialID as unknown as string,
         type: 'public-key',
         transports: ['usb', 'ble', 'nfc', 'internal'],
       })),
@@ -204,7 +206,7 @@ export class WebAuthnService {
     }
 
     const authenticator = user.credentials.find(
-      (cred) => this.uint8ArrayToBase64url(cred.credentialID) === attResp.id,
+      (cred) => cred.credentialID === attResp.id,
     );
 
     if (!authenticator) {
@@ -215,7 +217,9 @@ export class WebAuthnService {
     this.logger.log('Verifying authentication response');
     const authenticatorWithStringID = {
       ...authenticator,
-      credentialID: this.uint8ArrayToBase64url(authenticator.credentialID),
+      credentialID: this.base64urlToUint8Array(
+        authenticator.credentialID as unknown as string,
+      ),
       credentialPublicKey: this.base64urlToUint8Array(
         authenticator.credentialPublicKey as unknown as string,
       ),
@@ -226,7 +230,7 @@ export class WebAuthnService {
       expectedChallenge: expectedChallenge,
       expectedOrigin: 'http://localhost:3001',
       expectedRPID: 'localhost',
-      authenticator: authenticatorWithStringID,
+      authenticator: authenticatorWithStringID as any,
     });
 
     if (verified) {
