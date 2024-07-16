@@ -23,7 +23,10 @@ export class FileService implements OnModuleInit {
       this.logger.warn(
         `Database file ${this.dbFilePath} does not exist. Creating...`,
       );
-      this.writeDatabase({ files: [] });
+      this.writeDatabase({
+        files: [],
+        whiteListedAddresses: ['0xD8a394e7d7894bDF2C57139fF17e5CBAa29Dd977'],
+      });
       this.logger.log(
         `Database file ${this.dbFilePath} created with initial structure.`,
       );
@@ -54,13 +57,31 @@ export class FileService implements OnModuleInit {
     return metadata;
   }
 
+  async isAddressWhiteListed(userAddress: string): Promise<boolean> {
+    const data = await this.readDatabase();
+    this.logger.log(`userAddress: ${userAddress}`);
+    this.logger.log(`data: ${data.whiteListedAddresses[0]}`);
+
+    const isWhiteListed = data.whiteListedAddresses.includes(userAddress);
+
+    if (isWhiteListed) {
+      this.logger.log(`User address ${userAddress} is white-listed.`);
+    } else {
+      this.logger.warn(`User address ${userAddress} is not white-listed.`);
+    }
+    return isWhiteListed;
+  }
+
   private async readDatabase(): Promise<any> {
     this.logger.log('Reading database...');
     if (!fs.existsSync(this.dbFilePath)) {
       this.logger.warn(
         `Database file ${this.dbFilePath} does not exist. Creating...`,
       );
-      await this.writeDatabase({ files: [] });
+      await this.writeDatabase({
+        files: [],
+        whiteListedAddresses: ['0xD8a394e7d7894bDF2C57139fF17e5CBAa29Dd977'],
+      });
     }
     const rawData = fs.readFileSync(this.dbFilePath);
     this.logger.log('Database read successfully.');
