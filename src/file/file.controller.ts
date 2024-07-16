@@ -64,7 +64,7 @@ export class FileController {
     };
   }
 
-  @Get('download/:filename/:userAddress')
+  @Get('download/:artist/:filename/:userAddress')
   @UseGuards(ApiKeyGuard)
   @ApiHeader({
     name: 'api-key',
@@ -72,19 +72,22 @@ export class FileController {
     required: true,
   })
   async downloadFile(
+    @Param('artist') artist: string,
     @Param('filename') filename: string,
     @Param('userAddress') userAddress: string,
     @Res() res: Response,
   ) {
-    const isWhiteListed =
-      await this.fileService.isAddressWhiteListed(userAddress);
+    const isWhiteListed = await this.fileService.isAddressWhiteListed(
+      artist,
+      userAddress,
+    );
     if (!isWhiteListed) {
       return res
         .status(403)
         .json({ message: 'Forbidden: Address is not white-listed' });
     }
 
-    const metadata = await this.fileService.getFileMetadata(filename);
+    const metadata = await this.fileService.getFileMetadata(artist, filename);
     if (!metadata) {
       return res.status(404).json({ message: 'File not found' });
     }

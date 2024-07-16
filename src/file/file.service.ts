@@ -49,10 +49,17 @@ export class FileService implements OnModuleInit {
     );
   }
 
-  async getFileMetadata(filename: string): Promise<FileUploadDto | undefined> {
+  async getFileMetadata(
+    artist: string,
+    filename: string,
+  ): Promise<FileUploadDto | undefined> {
     this.logger.log(`Fetching file metadata for file: ${filename}`);
     const data = await this.readDatabase();
-    const metadata = data.artistAlpha.files.find(
+    if (!data[artist]) {
+      this.logger.warn(`Artist ${artist} not found.`);
+      return undefined;
+    }
+    const metadata = data[artist].files.find(
       (file) => file.filename === filename,
     );
     if (metadata) {
@@ -63,10 +70,17 @@ export class FileService implements OnModuleInit {
     return metadata;
   }
 
-  async isAddressWhiteListed(userAddress: string): Promise<boolean> {
+  async isAddressWhiteListed(
+    artist: string,
+    userAddress: string,
+  ): Promise<boolean> {
     const data = await this.readDatabase();
+    if (!data[artist]) {
+      this.logger.warn(`Artist ${artist} not found.`);
+      return false;
+    }
     const isWhiteListed =
-      data.artistAlpha.whiteListedAddresses.includes(userAddress);
+      data[artist].whiteListedAddresses.includes(userAddress);
     if (isWhiteListed) {
       this.logger.log(`User address ${userAddress} is white-listed.`);
     } else {
