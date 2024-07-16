@@ -49,6 +49,26 @@ export class FileService implements OnModuleInit {
     );
   }
 
+  async getAllFilesForArtist(artist: string): Promise<FileUploadDto[]> {
+    this.logger.log(`Fetching all files for artist: ${artist}`);
+    const data = await this.readDatabase();
+    if (!data[artist]) {
+      this.logger.warn(`Artist ${artist} not found.`);
+      return [];
+    }
+    return data[artist].files;
+  }
+
+  async getLatestFileForArtist(
+    artist: string,
+  ): Promise<FileUploadDto | undefined> {
+    const files = await this.getAllFilesForArtist(artist);
+    if (files.length === 0) {
+      return undefined;
+    }
+    return files[files.length - 1];
+  }
+
   async getFileMetadata(
     artist: string,
     filename: string,

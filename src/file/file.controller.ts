@@ -64,16 +64,26 @@ export class FileController {
     };
   }
 
-  @Get('download/:artist/:filename/:userAddress')
+  @Get('files/:artist')
   @UseGuards(ApiKeyGuard)
   @ApiHeader({
     name: 'api-key',
     description: 'API key',
     required: true,
   })
-  async downloadFile(
+  async getAllFiles(@Param('artist') artist: string): Promise<FileUploadDto[]> {
+    return this.fileService.getAllFilesForArtist(artist);
+  }
+
+  @Get('download/latest/:artist/:userAddress')
+  @UseGuards(ApiKeyGuard)
+  @ApiHeader({
+    name: 'api-key',
+    description: 'API key',
+    required: true,
+  })
+  async downloadLatestFile(
     @Param('artist') artist: string,
-    @Param('filename') filename: string,
     @Param('userAddress') userAddress: string,
     @Res() res: Response,
   ) {
@@ -87,9 +97,9 @@ export class FileController {
         .json({ message: 'Forbidden: Address is not white-listed' });
     }
 
-    const metadata = await this.fileService.getFileMetadata(artist, filename);
+    const metadata = await this.fileService.getLatestFileForArtist(artist);
     if (!metadata) {
-      return res.status(404).json({ message: 'File not found' });
+      return res.status(404).json({ message: 'No files found for artist' });
     }
     const filePath = path.join(
       __dirname,
