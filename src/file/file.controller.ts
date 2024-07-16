@@ -2,12 +2,12 @@ import {
   Controller,
   Post,
   UploadedFile,
+  Body,
   UseInterceptors,
   Get,
   Param,
   Res,
   UseGuards,
-  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileService } from './file.service';
@@ -23,12 +23,15 @@ import {
   ApiHeader,
 } from '@nestjs/swagger';
 
+class UploadFileDto {
+  title: string;
+  description: string;
+}
+
 @ApiTags('file')
 @ApiBearerAuth()
 @Controller('file')
 export class FileController {
-  private readonly logger = new Logger(FileController.name);
-
   constructor(private readonly fileService: FileService) {}
 
   @Post('upload')
@@ -44,6 +47,12 @@ export class FileController {
           type: 'string',
           format: 'binary',
         },
+        title: {
+          type: 'string',
+        },
+        description: {
+          type: 'string',
+        },
       },
     },
   })
@@ -52,22 +61,20 @@ export class FileController {
     description: 'API key',
     required: true,
   })
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
-    this.logger.log('Upload request received');
-    this.logger.debug(`File details: ${JSON.stringify(file)}`);
-
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() uploadFileDto: UploadFileDto,
+  ) {
     const metadata: FileUploadDto = {
       filename: file.filename,
       originalname: file.originalname,
       mimetype: file.mimetype,
       size: file.size,
       uploadDate: new Date(),
+      title: uploadFileDto.title,
+      description: uploadFileDto.description,
     };
-    this.logger.debug(`File metadata: ${JSON.stringify(metadata)}`);
-
     await this.fileService.saveFileMetadata(metadata);
-    this.logger.log('File metadata saved successfully');
-
     return {
       message: 'File uploaded successfully',
       metadata,
@@ -82,10 +89,7 @@ export class FileController {
     required: true,
   })
   async getAllFiles(@Param('artist') artist: string): Promise<FileUploadDto[]> {
-    this.logger.log(`Fetching all files for artist: ${artist}`);
-    const files = await this.fileService.getAllFilesForArtist(artist);
-    this.logger.debug(`Files fetched: ${JSON.stringify(files)}`);
-    return files;
+    return this.fileService.getAllFilesForArtist(artist);
   }
 
   @Get('download/latest/:artist/:userAddress')
@@ -100,18 +104,11 @@ export class FileController {
     @Param('userAddress') userAddress: string,
     @Res() res: Response,
   ) {
-    this.logger.log(
-      `Download latest file request received for artist: ${artist}, userAddress: ${userAddress}`,
-    );
-
     const isWhiteListed = await this.fileService.isAddressWhiteListed(
       artist,
       userAddress,
     );
-    this.logger.debug(`Is address white-listed: ${isWhiteListed}`);
-
     if (!isWhiteListed) {
-      this.logger.warn(`User address ${userAddress} is not white-listed`);
       return res
         .status(403)
         .json({ message: 'Forbidden: Address is not white-listed' });
@@ -119,11 +116,8 @@ export class FileController {
 
     const metadata = await this.fileService.getLatestFileForArtist(artist);
     if (!metadata) {
-      this.logger.warn(`No files found for artist: ${artist}`);
       return res.status(404).json({ message: 'No files found for artist' });
     }
-
-    this.logger.debug(`Latest file metadata: ${JSON.stringify(metadata)}`);
 
     const allFiles = await this.fileService.getAllFilesForArtist(artist);
     const filePath = path.join(
@@ -133,7 +127,6 @@ export class FileController {
     );
 
     const filenames = allFiles.map((file) => file.filename);
-    this.logger.debug(`All filenames: ${JSON.stringify(filenames)}`);
 
     return res.status(200).json({
       message: 'File fetched successfully',

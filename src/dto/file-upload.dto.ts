@@ -26,4 +26,14 @@ export class FileUploadDto {
   @IsNotEmpty()
   @ApiProperty()
   uploadDate: Date;
+
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  title: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  description: string;
 }
