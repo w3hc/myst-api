@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   UploadedFile,
+  Body,
   UseInterceptors,
   Get,
   Param,
@@ -22,6 +23,11 @@ import {
   ApiHeader,
 } from '@nestjs/swagger';
 
+class UploadFileDto {
+  title: string;
+  description: string;
+}
+
 @ApiTags('file')
 @ApiBearerAuth()
 @Controller('file')
@@ -41,6 +47,12 @@ export class FileController {
           type: 'string',
           format: 'binary',
         },
+        title: {
+          type: 'string',
+        },
+        description: {
+          type: 'string',
+        },
       },
     },
   })
@@ -49,13 +61,18 @@ export class FileController {
     description: 'API key',
     required: true,
   })
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() uploadFileDto: UploadFileDto,
+  ) {
     const metadata: FileUploadDto = {
       filename: file.filename,
       originalname: file.originalname,
       mimetype: file.mimetype,
       size: file.size,
       uploadDate: new Date(),
+      title: uploadFileDto.title,
+      description: uploadFileDto.description,
     };
     await this.fileService.saveFileMetadata(metadata);
     return {
@@ -64,35 +81,65 @@ export class FileController {
     };
   }
 
-  @Get('download/:filename/:userAddress')
+  @Get('files/:artist')
   @UseGuards(ApiKeyGuard)
   @ApiHeader({
     name: 'api-key',
     description: 'API key',
     required: true,
   })
-  async downloadFile(
-    @Param('filename') filename: string,
+  async getAllFiles(@Param('artist') artist: string): Promise<FileUploadDto[]> {
+    return this.fileService.getAllFilesForArtist(artist);
+  }
+
+  @Get('download/latest/:artist/:userAddress')
+  @UseGuards(ApiKeyGuard)
+  @ApiHeader({
+    name: 'api-key',
+    description: 'API key',
+    required: true,
+  })
+  async downloadLatestFile(
+    @Param('artist') artist: string,
     @Param('userAddress') userAddress: string,
     @Res() res: Response,
   ) {
-    const isWhiteListed =
-      await this.fileService.isAddressWhiteListed(userAddress);
+    const isWhiteListed = await this.fileService.isAddressWhiteListed(
+      artist,
+      userAddress,
+    );
     if (!isWhiteListed) {
       return res
         .status(403)
         .json({ message: 'Forbidden: Address is not white-listed' });
     }
 
-    const metadata = await this.fileService.getFileMetadata(filename);
+    const metadata = await this.fileService.getLatestFileForArtist(artist);
     if (!metadata) {
-      return res.status(404).json({ message: 'File not found' });
+      return res.status(404).json({ message: 'No files found for artist' });
     }
+
+    const allFiles = await this.fileService.getAllFilesForArtist(artist);
     const filePath = path.join(
       __dirname,
       '../../dist/uploads',
       metadata.filename,
     );
-    return res.download(filePath, metadata.originalname);
+
+    const filenames = allFiles.map((file) => file.filename);
+
+    return res.status(200).json({
+      message: 'File fetched successfully',
+      filePath,
+      latestFile: {
+        filename: metadata.filename,
+        originalname: metadata.originalname,
+        mimetype: metadata.mimetype,
+        size: metadata.size,
+        uploadDate: metadata.uploadDate,
+      },
+      filenames,
+      allFiles,
+    });
   }
 }

@@ -5,8 +5,8 @@ import { FileUploadDto } from '../dto/file-upload.dto';
 @Injectable()
 export class FileService implements OnModuleInit {
   private readonly logger = new Logger(FileService.name);
-  private readonly uploadPath = './dist/uploads'; // Update to dist/uploads
-  private readonly dbFilePath = './dist/uploads/db.json'; // Update to dist/uploads/db.json
+  private readonly uploadPath = './dist/uploads';
+  private readonly dbFilePath = './dist/uploads/db.json';
 
   onModuleInit() {
     this.logger.log('Initializing FileService...');
@@ -24,8 +24,12 @@ export class FileService implements OnModuleInit {
         `Database file ${this.dbFilePath} does not exist. Creating...`,
       );
       this.writeDatabase({
-        files: [],
-        whiteListedAddresses: ['0xD8a394e7d7894bDF2C57139fF17e5CBAa29Dd977'],
+        artistAlpha: {
+          title: '',
+          description: '',
+          files: [],
+          whiteListedAddresses: ['0xD8a394e7d7894bDF2C57139fF17e5CBAa29Dd977'],
+        },
       });
       this.logger.log(
         `Database file ${this.dbFilePath} created with initial structure.`,
@@ -38,17 +42,46 @@ export class FileService implements OnModuleInit {
   async saveFileMetadata(metadata: FileUploadDto): Promise<void> {
     this.logger.log(`Saving file metadata for file: ${metadata.filename}`);
     const data = await this.readDatabase();
-    data.files.push(metadata);
+    data.artistAlpha.files.push(metadata);
     await this.writeDatabase(data);
     this.logger.log(
       `File metadata for ${metadata.filename} saved successfully.`,
     );
   }
 
-  async getFileMetadata(filename: string): Promise<FileUploadDto | undefined> {
+  async getAllFilesForArtist(artist: string): Promise<FileUploadDto[]> {
+    this.logger.log(`Fetching all files for artist: ${artist}`);
+    const data = await this.readDatabase();
+    if (!data[artist]) {
+      this.logger.warn(`Artist ${artist} not found.`);
+      return [];
+    }
+    return data[artist].files;
+  }
+
+  async getLatestFileForArtist(
+    artist: string,
+  ): Promise<FileUploadDto | undefined> {
+    const files = await this.getAllFilesForArtist(artist);
+    if (files.length === 0) {
+      return undefined;
+    }
+    return files[files.length - 1];
+  }
+
+  async getFileMetadata(
+    artist: string,
+    filename: string,
+  ): Promise<FileUploadDto | undefined> {
     this.logger.log(`Fetching file metadata for file: ${filename}`);
     const data = await this.readDatabase();
-    const metadata = data.files.find((file) => file.filename === filename);
+    if (!data[artist]) {
+      this.logger.warn(`Artist ${artist} not found.`);
+      return undefined;
+    }
+    const metadata = data[artist].files.find(
+      (file) => file.filename === filename,
+    );
     if (metadata) {
       this.logger.log(`File metadata for ${filename} found.`);
     } else {
@@ -57,13 +90,17 @@ export class FileService implements OnModuleInit {
     return metadata;
   }
 
-  async isAddressWhiteListed(userAddress: string): Promise<boolean> {
+  async isAddressWhiteListed(
+    artist: string,
+    userAddress: string,
+  ): Promise<boolean> {
     const data = await this.readDatabase();
-    this.logger.log(`userAddress: ${userAddress}`);
-    this.logger.log(`data: ${data.whiteListedAddresses[0]}`);
-
-    const isWhiteListed = data.whiteListedAddresses.includes(userAddress);
-
+    if (!data[artist]) {
+      this.logger.warn(`Artist ${artist} not found.`);
+      return false;
+    }
+    const isWhiteListed =
+      data[artist].whiteListedAddresses.includes(userAddress);
     if (isWhiteListed) {
       this.logger.log(`User address ${userAddress} is white-listed.`);
     } else {
@@ -79,8 +116,12 @@ export class FileService implements OnModuleInit {
         `Database file ${this.dbFilePath} does not exist. Creating...`,
       );
       await this.writeDatabase({
-        files: [],
-        whiteListedAddresses: ['0xD8a394e7d7894bDF2C57139fF17e5CBAa29Dd977'],
+        artistAlpha: {
+          title: '',
+          description: '',
+          files: [],
+          whiteListedAddresses: ['0xD8a394e7d7894bDF2C57139fF17e5CBAa29Dd977'],
+        },
       });
     }
     const rawData = fs.readFileSync(this.dbFilePath);
